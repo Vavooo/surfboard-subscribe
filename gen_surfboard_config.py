@@ -6,362 +6,230 @@ import binascii
 import urllib.parse
 import re
 import os
-import yaml
+import time
 from datetime import datetime
+import yaml
 
-def fetch_ss_nodes():
-    """获取SS节点信息"""
-    a = 'http://api.skrapp.net/api/serverlist'
-    b = {
-        'accept': '/',
-        'accept-language': 'zh-Hans-CN;q=1, en-CN;q=0.9',
-        'appversion': '1.3.1',
-        'user-agent': 'SkrKK/1.3.1 (iPhone; iOS 13.5; Scale/2.00)',
-        'content-type': 'application/x-www-form-urlencoded',
-        'Cookie': 'PHPSESSID=fnffo1ivhvt0ouo6ebqn86a0d4'
+def ensure_public_dir():
+    """创建public目录"""
+    os.makedirs('public', exist_ok=True)
+
+def fetch_ss_nodes(max_retry=3):
+    """获取SS节点（带重试机制）"""
+    url = 'http://api.skrapp.net/api/serverlist'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Content-Type': 'application/x-www-form-urlencoded'
     }
-    c = {'data': '4265a9c353cd8624fd2bc7b5d75d2f18b1b5e66ccd37e2dfa628bcb8f73db2f14ba98bc6a1d8d0d1c7ff1ef0823b11264d0addaba2bd6a30bdefe06f4ba994ed'}
-    d = b'65151f8d966bf596'
-    e = b'88ca0f0ea1ecf975'
-
-    def f(g, d, e):
-        h = pyaes.AESModeOfOperationCBC(d, iv=e)
-        i = b''.join(h.decrypt(g[j:j+16]) for j in range(0, len(g), 16))
-        return i[:-i[-1]]
-
-    j = requests.post(a, headers=b, data=c)
-    ss_nodes = []
-
-    if j.status_code == 200:
-        k = j.text.strip()
-        l = binascii.unhexlify(k)
-        m = f(l, d, e)
-        n = json.loads(m)
-        for o in n['data']:
-            p = f"aes-256-cfb:{o['password']}@{o['ip']}:{o['port']}"
-            q = base64.b64encode(p.encode('utf-8')).decode('utf-8')
-            r = f"ss://{q}#{o['title']}"
-            ss_nodes.append(r)
+    data = {'data': '4265a9c353cd8624fd2bc7b5d75d2f18b1b5e66ccd37e2dfa628bcb8f73db2f14ba98bc6a1d8d0d1c7ff1ef0823b11264d0addaba2bd6a30bdefe06f4ba994ed'}
     
-    return ss_nodes
+    key = b'65151f8d966bf596'
+    iv = b'88ca0f0ea1ecf975'
+
+    def aes_decrypt(ciphertext):
+        cipher = pyaes.AESModeOfOperationCBC(key, iv=iv)
+        decrypted = cipher.decrypt(ciphertext)
+        return decrypted[:-decrypted[-1]]
+
+    for attempt in range(max_retry):
+        try:
+            response = requests.post(url, headers=headers, data=data, timeout=15)
+            response.raise_for_status()
+            
+            hex_data = response.text.strip()
+            ciphertext = binascii.unhexlify(hex_data)
+            decrypted_data = aes_decrypt(ciphertext)
+            nodes = json.loads(decrypted_data)
+            
+            ss_nodes = []
+            for node in nodes['data']:
+                ss_url = f"ss://{base64.b64encode(f'aes-256-cfb:{node['password']}@{node['ip']}:{node['port']}'.encode()).decode()}##{node['title']}"
+                ss_nodes.append(ss_url)
+            return ss_nodes
+            
+        except Exception as e:
+            print(f"Attempt {attempt+1} failed: {str(e)}")
+            if attempt == max_retry - 1:
+                return []
+            time.sleep(5)
 
 def parse_ss_url(ss_url):
-    """解析SS URL并返回节点信息"""
-    if not ss_url.startswith('ss://'):
-        return None
-    
-    ss_data = ss_url[5:]
-    
-    if '#' in ss_data:
-        encoded_data, tag = ss_data.split('#', 1)
-        tag = urllib.parse.unquote(tag)
-    else:
-        encoded_data = ss_data
-        tag = "Unnamed"
-    
+    """解析SS链接"""
     try:
-        padding_needed = len(encoded_data) % 4
-        if padding_needed:
-            encoded_data += '=' * (4 - padding_needed)
+        if not ss_url.startswith('ss://'):
+            return None
             
-        decoded = base64.urlsafe_b64decode(encoded_data).decode('utf-8')
+        parts = ss_url[5:].split('#', 2)
+        encoded = parts[0]
+        remark = urllib.parse.unquote(parts[2]) if len(parts) > 2 else "Unnamed"
         
-        method_pwd, host_port = decoded.split('@', 1)
-        method, password = method_pwd.split(':', 1)
-        host, port = host_port.split(':', 1)
+        padding = 4 - (len(encoded) % 4)
+        decoded = base64.urlsafe_b64decode(encoded + ('=' * padding)).decode()
         
-        # 使用节点的地名作为名称
-        location_match = re.search(r'([A-Z]{2})[,\s]*(.*)', tag)
-        if location_match:
-            country_code = location_match.group(1)
-            location = location_match.group(2).strip() if location_match.group(2) else country_code
-            node_name = f"{country_code}_{location.replace(' ', '_')}"
-        else:
-            node_name = tag.replace(' ', '_')
+        method_part, server_part = decoded.split('@', 1)
+        method, password = method_part.split(':', 1)
+        host, port = server_part.split(':', 1)
         
-        # 确保名称干净且不含特殊字符
-        node_name = re.sub(r'[^\w_-]', '', node_name)
-        if not node_name:
-            node_name = f"Node_{host.replace('.', '_')}"
-            
+        location = re.sub(r'[^\w\-]', '', remark.split(',')[0].strip().replace(' ', '_'))
         return {
             'method': method,
             'password': password,
             'server': host,
             'port': int(port),
-            'name': node_name,
-            'original_name': tag
+            'name': f"{location}_{host.replace('.', '_')}"
         }
     except Exception as e:
-        print(f"Error parsing SS URL: {e}")
+        print(f"解析失败: {ss_url} - {str(e)}")
         return None
 
-def generate_surfboard_config(nodes_info):
-    """生成Surfboard配置文件内容"""
-    if not nodes_info:
-        return "No valid SS nodes found"
-    
-    config = """[General]
-loglevel = warning
-dns-server = system, 8.8.8.8
-skip-proxy = 127.0.0.1, 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, 100.64.0.0/10, localhost, *.local
-proxy-test-url = http://www.gstatic.com/generate_204
-internet-test-url = http://www.gstatic.com/generate_204
+def generate_surfboard_config(nodes):
+    """生成Surfboard配置"""
+    config = f"""[General]
+loglevel = notify
+dns-server = 8.8.8.8, 8.8.4.4
+skip-proxy = 127.0.0.1, 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12
+ipv6 = false
 test-timeout = 5
 
 [Proxy]
 """
-    
-    for node in nodes_info:
-        config += f'{node["name"]} = ss, {node["server"]}, {node["port"]}, encrypt-method={node["method"]}, password={node["password"]}\n'
-    
-    config += "\n[Proxy Group]\n"
-    node_names = [node['name'] for node in nodes_info]
-    
-    config += "Auto = url-test, " + ", ".join(node_names) + ", url=http://www.gstatic.com/generate_204, interval=300, tolerance=100\n"
-    config += "Manual = select, " + ", ".join(node_names) + "\n"
-    config += "Proxy = select, Auto, Manual\n"
-    
-    config += "\n[Rule]\nFINAL,Proxy\n"
-    
-    return config
-
-def generate_simple_clash_config(nodes_info):
-    """生成简化但格式正确的Clash配置"""
-    config = """port: 7890
-socks-port: 7891
-allow-lan: true
-mode: rule
-log-level: info
-external-controller: 127.0.0.1:9090
-proxies:
-"""
-    for node in nodes_info:
-        config += f"""
-  - name: {node['name']}
-    type: ss
-    server: {node['server']}
-    port: {node['port']}
-    cipher: {node['method']}
-    password: {node['password']}
-"""
+    proxy_names = []
+    for node in nodes:
+        config += f"{node['name']} = ss, {node['server']}, {node['port']}, encrypt-method={node['method']}, password={node['password']}\n"
+        proxy_names.append(node['name'])
     
     config += """
-proxy-groups:
-  - name: Auto
-    type: url-test
-    proxies:
-"""
-    for node in nodes_info:
-        config += f"      - {node['name']}\n"
-        
-    config += """    url: http://www.gstatic.com/generate_204
-    interval: 300
-  - name: Proxy
-    type: select
-    proxies:
-      - Auto
-"""
-    for node in nodes_info:
-        config += f"      - {node['name']}\n"
-        
-    config += """
-rules:
-  - MATCH,Proxy
-"""
-    return config
+[Proxy Group]
+自动选择 = url-test, {}, url=http://www.gstatic.com/generate_204, interval=600, tolerance=50
+手动选择 = select, {}
+全部节点 = select, {}
 
-def validate_yaml(yaml_content):
-    """验证YAML格式是否正确"""
-    try:
-        yaml.safe_load(yaml_content)
-        return True
-    except Exception as e:
-        print(f"YAML验证失败: {e}")
-        return False
-
-def generate_v2ray_subscription(nodes_info):
-    """为V2Ray/Shadowrocket生成Base64编码的订阅链接内容"""
-    ss_links = []
-    for node in nodes_info:
-        ss_data = f"{node['method']}:{node['password']}@{node['server']}:{node['port']}"
-        encoded_data = base64.b64encode(ss_data.encode('utf-8')).decode('utf-8')
-        ss_links.append(f"ss://{encoded_data}#{urllib.parse.quote(node['original_name'])}")
-    
-    combined = "\n".join(ss_links)
-    return base64.b64encode(combined.encode('utf-8')).decode('utf-8')
-
-def generate_quantumult_conf(nodes_info):
-    """生成Quantumult配置文件"""
-    config = "[SERVER]\n"
-    
-    for node in nodes_info:
-        config += f"{node['original_name']} = shadowsocks, {node['server']}, {node['port']}, {node['method']}, {node['password']}, upstream-proxy=false, upstream-proxy-auth=false, over-tls=false, certificate=1\n"
-    
-    config += "\n[POLICY]\n"
-    config += "Auto = auto, " + ", ".join([node['original_name'] for node in nodes_info]) + "\n"
-    config += "Proxy = select, Auto, " + ", ".join([node['original_name'] for node in nodes_info]) + "\n"
-    
-    config += "\n[RULE]\n"
-    config += "FINAL,Proxy\n"
+[Rule]
+FINAL, 自动选择
+""".format(', '.join(proxy_names), ', '.join(proxy_names), ', '.join(proxy_names))
     
     return config
 
-def save_all_configs(nodes_info):
-    """保存所有格式的配置文件"""
-    os.makedirs('public', exist_ok=True)
-    
-    # 保存Surfboard配置
-    surfboard_config = generate_surfboard_config(nodes_info)
-    with open('public/surfboard.conf', 'w', encoding='utf-8') as f:
-        f.write(surfboard_config)
-    
-    # 保存Clash配置
-    clash_config = generate_simple_clash_config(nodes_info)
-    if validate_yaml(clash_config):
-        with open('public/clash.yaml', 'w', encoding='utf-8') as f:
-            f.write(clash_config)
-    else:
-        print("生成的Clash配置格式错误，跳过保存")
-    
-    # 保存V2Ray订阅内容
-    v2ray_sub = generate_v2ray_subscription(nodes_info)
-    with open('public/v2ray.txt', 'w', encoding='utf-8') as f:
-        f.write(v2ray_sub)
-    
-    # 保存Quantumult配置
-    quantumult_config = generate_quantumult_conf(nodes_info)
-    with open('public/quantumult.conf', 'w', encoding='utf-8') as f:
-        f.write(quantumult_config)
-    
-    # 保存原始SS节点
-    with open('public/ss_nodes.txt', 'w', encoding='utf-8') as f:
-        for node in nodes_info:
-            ss_data = f"{node['method']}:{node['password']}@{node['server']}:{node['port']}"
-            encoded_data = base64.b64encode(ss_data.encode('utf-8')).decode('utf-8')
-            ss_link = f"ss://{encoded_data}#{urllib.parse.quote(node['original_name'])}"
-            f.write(f"{ss_link}\n")
-    
-    # 保存更新时间
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open('public/update_time.txt', 'w', encoding='utf-8') as f:
-        f.write(now)
+def generate_clash_config(nodes):
+    """生成Clash配置"""
+    config = {
+        'port': 7890,
+        'socks-port': 7891,
+        'allow-lan': False,
+        'mode': 'Rule',
+        'log-level': 'info',
+        'external-controller': '0.0.0.0:9090',
+        'proxies': [],
+        'proxy-groups': [
+            {
+                'name': '🚀 自动选择',
+                'type': 'url-test',
+                'proxies': [node['name'] for node in nodes],
+                'url': 'http://www.gstatic.com/generate_204',
+                'interval': 300
+            },
+            {
+                'name': '🔗 手动选择',
+                'type': 'select',
+                'proxies': [node['name'] for node in nodes]
+            }
+        ],
+        'rules': [
+            'DOMAIN-SUFFIX,google.com,🚀 自动选择',
+            'DOMAIN-KEYWORD,instagram,🚀 自动选择',
+            'IP-CIDR,8.8.8.8/32,🚀 自动选择',
+            'GEOIP,CN,DIRECT',
+            'MATCH,🚀 自动选择'
+        ]
+    }
 
-def create_improved_index_html():
-    """创建支持多种代理软件的HTML页面"""
-    html_content = """<!DOCTYPE html>
-<html lang="en">
+    for node in nodes:
+        config['proxies'].append({
+            'name': node['name'],
+            'type': 'ss',
+            'server': node['server'],
+            'port': node['port'],
+            'cipher': node['method'].split('-')[-1].upper(),
+            'password': node['password'],
+            'udp': True
+        })
+    
+    return yaml.dump(config, allow_unicode=True, sort_keys=False)
+
+def create_index_html(update_time, node_count):
+    """生成状态页面"""
+    return f"""<!DOCTYPE html>
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>多协议代理订阅</title>
+    <title>订阅中心</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            line-height: 1.6;
-            color: #333;
-            max-width: 900px;
-            margin: 0 auto;
-        }
-        h1, h2, h3 {
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 20px auto; padding: 0 20px; }}
+        h1 {{ color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 0.5em; }}
+        .card {{
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 25px 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }}
+        input {{
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #3498db;
+            border-radius: 6px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
             color: #2c3e50;
-        }
-        .container {
-            background-color: #f9f9f9;
-            border-radius: 5px;
-            padding: 20px;
-            margin-top: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .tab {
-            overflow: hidden;
-            border: 1px solid #ccc;
-            background-color: #f1f1f1;
-            border-radius: 5px 5px 0 0;
-        }
-        .tab button {
-            background-color: inherit;
-            float: left;
-            border: none;
-            outline: none;
-            cursor: pointer;
-            padding: 14px 16px;
-            transition: 0.3s;
-            font-size: 17px;
-        }
-        .tab button:hover {
-            background-color: #ddd;
-        }
-        .tab button.active {
-            background-color: #3498db;
-            color: white;
-        }
-        .tabcontent {
-            display: none;
-            padding: 20px;
-            border: 1px solid #ccc;
-            border-top: none;
-            border-radius: 0 0 5px 5px;
-        }
-        code {
-            background-color: #f1f1f1;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-family: monospace;
-            word-break: break-all;
-        }
-        .subscription-box {
-            background-color: #f1f1f1;
-            padding: 10px;
-            border-radius: 3px;
-            margin: 10px 0;
-            word-break: break-all;
-            font-family: monospace;
-        }
-        .update-time {
-            font-size: 0.9em;
-            color: #7f8c8d;
-            margin-top: 10px;
-        }
-        .button {
-            display: inline-block;
-            background-color: #3498db;
-            color: white;
-            padding: 10px 15px;
-            text-decoration: none;
-            border-radius: 4px;
-            margin-top: 15px;
-            margin-right: 10px;
-        }
-        .button:hover {
-            background-color: #2980b9;
-        }
-        .copy-btn {
-            background-color: #2ecc71;
-            border: none;
-            color: white;
-            padding: 5px 10px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            font-size: 14px;
-            margin: 5px 2px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
+        }}
+        .stats {{ color: #7f8c8d; font-size: 0.95em; margin-top: 10px; }}
     </style>
 </head>
 <body>
-    <h1>多协议代理订阅</h1>
-    <div class="container">
-        <div class="tab">
-            <button class="tablinks active" onclick="openTab(event, 'Surfboard')">Surfboard</button>
-            <button class="tablinks" onclick="openTab(event, 'Clash')">Clash</button>
-            <button class="tablinks" onclick="openTab(event, 'V2Ray')">V2Ray/小火箭</button>
-            <button class="tablinks" onclick="openTab(event, 'Quantumult')">Quantumult</button>
-        </div>
+    <h1>多协议订阅服务</h1>
+    
+    <div class="card">
+        <h2>🏄 Surfboard 订阅</h2>
+        <input type="text" value="https://geniusppl.github.io/surfboard-subscribe/surfboard.conf" readonly>
+        <p class="stats">📡 节点数量：{node_count} 个</p>
+        <p class="stats">⏱️ 更新时间：{update_time}</p>
+    </div>
 
-        <div id="Surfboard" class="tabcontent" style="display: block;">
-            <h2>Surfboard 订阅</h2>
+    <div class="card">
+        <h2>⚡ Clash 订阅</h2>
+        <input type="text" value="https://geniusppl.github.io/surfboard-subscribe/clash.yaml" readonly>
+        <p class="stats">📡 节点数量：{node_count} 个</p>
+        <p class="stats">🔒 支持协议：Shadowsocks</p>
+    </div>
+</body>
+</html>
+"""
+
+def main():
+    ensure_public_dir()
+    
+    ss_nodes = fetch_ss_nodes()
+    valid_nodes = [node for node in (parse_ss_url(url) for url in ss_nodes) if node]
+    
+    if valid_nodes:
+        # 保存配置文件
+        with open('public/surfboard.conf', 'w', encoding='utf-8') as f:
+            f.write(generate_surfboard_config(valid_nodes))
+        
+        with open('public/clash.yaml', 'w', encoding='utf-8') as f:
+            f.write(generate_clash_config(valid_nodes))
+        
+        # 保存节点列表
+        with open('public/ss_nodes.txt', 'w', encoding='utf-8') as f:
+            f.write('\n'.join(ss_nodes))
+        
+        # 生成状态页
+        update_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open('public/index.html', 'w', encoding='utf-8') as f:
+            f.write(create_index_html(update_time, len(valid_nodes)))
+    else:
+        print("未获取到有效节点，跳过文件生成")
+
+if __name__ == '__main__':
+    main()
