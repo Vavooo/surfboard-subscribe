@@ -10,8 +10,8 @@ from datetime import datetime
 
 def fetch_ss_nodes():
     """获取SS节点信息"""
-    a = 'http://api.skrapp.net/api/serverlist'
-    b = {
+    url = 'http://api.skrapp.net/api/serverlist'
+    headers = {
         'accept': '/',
         'accept-language': 'zh-Hans-CN;q=1, en-CN;q=0.9',
         'appversion': '1.3.1',
@@ -19,57 +19,49 @@ def fetch_ss_nodes():
         'content-type': 'application/x-www-form-urlencoded',
         'Cookie': 'PHPSESSID=fnffo1ivhvt0ouo6ebqn86a0d4'
     }
-    c = {'data': '4265a9c353cd8624fd2bc7b5d75d2f18b1b5e66ccd37e2dfa628bcb8f73db2f14ba98bc6a1d8d0d1c7ff1ef0823b11264d0addaba2bd6a30bdefe06f4ba994ed'}
-    d = b'65151f8d966bf596'
-    e = b'88ca0f0ea1ecf975'
+    data = {'data': '4265a9c353cd8624fd2bc7b5d75d2f18b1b5e66ccd37e2dfa628bcb8f73db2f14ba98bc6a1d8d0d1c7ff1ef0823b11264d0addaba2bd6a30bdefe06f4ba994ed'}
+    key = b'65151f8d966bf596'
+    iv = b'88ca0f0ea1ecf975'
 
-    def f(g, d, e):
-        h = pyaes.AESModeOfOperationCBC(d, iv=e)
-        i = b''.join(h.decrypt(g[j:j+16]) for j in range(0, len(g), 16))
-        return i[:-i[-1]]
+    def decrypt(encrypted_data, key, iv):
+        aes = pyaes.AESModeOfOperationCBC(key, iv=iv)
+        decrypted = b''.join(aes.decrypt(encrypted_data[j:j+16]) for j in range(0, len(encrypted_data), 16))
+        return decrypted[:-decrypted[-1]]
 
-    j = requests.post(a, headers=b, data=c)
+    response = requests.post(url, headers=headers, data=data)
     ss_nodes = []
 
-    if j.status_code == 200:
-        k = j.text.strip()
-        l = binascii.unhexlify(k)
-        m = f(l, d, e)
-        n = json.loads(m)
-        for o in n['data']:
-            p = f"aes-256-cfb:{o['password']}@{o['ip']}:{o['port']}"
-            q = base64.b64encode(p.encode('utf-8')).decode('utf-8')
-            r = f"ss://{q}#{o['title']}"
-            ss_nodes.append(r)
-    
+    if response.status_code == 200:
+        encrypted_text = response.text.strip()
+        encrypted_bytes = binascii.unhexlify(encrypted_text)
+        decrypted = decrypt(encrypted_bytes, key, iv)
+        node_data = json.loads(decrypted)
+        for node in node_data['data']:
+            ss_str = f"aes-256-cfb:{node['password']}@{node['ip']}:{node['port']}"
+            encoded = base64.b64encode(ss_str.encode('utf-8')).decode('utf-8')
+            ss_url = f"ss://{encoded}#{node['title']}"
+            ss_nodes.append(ss_url)
     return ss_nodes
 
 def parse_ss_url(ss_url):
     """解析SS URL并返回节点信息"""
     if not ss_url.startswith('ss://'):
         return None
-    
     ss_data = ss_url[5:]
-    
     if '#' in ss_data:
         encoded_data, tag = ss_data.split('#', 1)
         tag = urllib.parse.unquote(tag)
     else:
         encoded_data = ss_data
         tag = "Unnamed"
-    
     try:
         padding_needed = len(encoded_data) % 4
         if padding_needed:
             encoded_data += '=' * (4 - padding_needed)
-            
         decoded = base64.urlsafe_b64decode(encoded_data).decode('utf-8')
-        
         method_pwd, host_port = decoded.split('@', 1)
         method, password = method_pwd.split(':', 1)
         host, port = host_port.split(':', 1)
-        
-        # 使用节点的地名作为名称
         location_match = re.search(r'([A-Z]{2})[,\s]*(.*)', tag)
         if location_match:
             country_code = location_match.group(1)
@@ -77,12 +69,9 @@ def parse_ss_url(ss_url):
             node_name = f"{country_code}_{location.replace(' ', '_')}"
         else:
             node_name = tag.replace(' ', '_')
-        
-        # 确保名称干净且不含特殊字符
         node_name = re.sub(r'[^\w_-]', '', node_name)
         if not node_name:
             node_name = f"Node_{host.replace('.', '_')}"
-            
         return {
             'method': method,
             'password': password,
@@ -96,10 +85,9 @@ def parse_ss_url(ss_url):
         return None
 
 def generate_improved_config(nodes_info):
-    """生成配置文件内容，包含自动选择延迟最低节点的功能"""
+    """生成Surfboard配置文件内容，包含自动选择延迟最低节点的功能"""
     if not nodes_info:
         return "No valid SS nodes found"
-    
     config = """[General]
 loglevel = warning
 dns-server = system, 8.8.8.8
@@ -110,19 +98,29 @@ test-timeout = 5
 
 [Proxy]
 """
-    
     for node in nodes_info:
         config += f'{node["name"]} = ss, {node["server"]}, {node["port"]}, encrypt-method={node["method"]}, password={node["password"]}\n'
-    
     config += "\n[Proxy Group]\n"
     node_names = [node['name'] for node in nodes_info]
-    
     config += "Auto = url-test, " + ", ".join(node_names) + ", url=http://www.gstatic.com/generate_204, interval=300, tolerance=100\n"
     config += "Manual = select, " + ", ".join(node_names) + "\n"
     config += "Proxy = select, Auto, Manual\n"
-    
     config += "\n[Rule]\nFINAL,Proxy\n"
-    
+    return config
+
+def generate_clash_config(nodes_info):
+    """生成Clash配置文件内容"""
+    if not nodes_info:
+        return "No valid SS nodes found"
+    config = "proxies:\n"
+    for node in nodes_info:
+        config += f"""  - name: {node['name']}
+    type: ss
+    server: {node['server']}
+    port: {node['port']}
+    cipher: {node['method']}
+    password: {node['password']}
+"""
     return config
 
 def save_ss_nodes(ss_nodes):
@@ -131,9 +129,9 @@ def save_ss_nodes(ss_nodes):
         for node in ss_nodes:
             f.write(f"{node}\n")
 
-def save_config(config_content):
+def save_config(config_content, filename):
     """保存配置文件内容"""
-    with open('public/surfboard.conf', 'w', encoding='utf-8') as f:
+    with open(filename, 'w', encoding='utf-8') as f:
         f.write(config_content)
 
 def save_update_time():
@@ -147,100 +145,56 @@ def create_index_html():
     html_content = """<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Surfboard 配置订阅</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            line-height: 1.6;
-            color: #333;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        h1 {
-            color: #2c3e50;
-        }
-        .container {
-            background-color: #f9f9f9;
-            border-radius: 5px;
-            padding: 20px;
-            margin-top: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        code {
-            background-color: #f1f1f1;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-family: monospace;
-        }
-        .update-time {
-            font-size: 0.9em;
-            color: #7f8c8d;
-            margin-top: 10px;
-        }
-        .button {
-            display: inline-block;
-            background-color: #3498db;
-            color: white;
-            padding: 10px 15px;
-            text-decoration: none;
-            border-radius: 4px;
-            margin-top: 15px;
-        }
-        .button:hover {
-            background-color: #2980b9;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Surfboard 和 Clash 配置订阅</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 0; padding: 20px; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; }
+h1 { color: #2c3e50; }
+.container { background-color: #f9f9f9; border-radius: 5px; padding: 20px; margin-top: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+code { background-color: #f1f1f1; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
+.update-time { font-size: 0.9em; color: #7f8c8d; margin-top: 10px; }
+.button { display: inline-block; background-color: #3498db; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; margin-top: 15px; }
+.button:hover { background-color: #2980b9; }
+</style>
 </head>
 <body>
-    <h1>Surfboard 配置订阅</h1>
-    <div class="container">
-        <h2>订阅链接</h2>
-        <p>将以下链接添加到 Surfboard 应用中：</p>
-        <code id="subscriptionUrl"></code>
-        <p>
-            <a href="" id="subscriptionLink" class="button">点击直接添加到 Surfboard</a>
-        </p>
-        
-        <h2>使用说明</h2>
-        <ol>
-            <li>复制上面的订阅链接</li>
-            <li>打开 Surfboard 应用</li>
-            <li>点击右上角的 "+" 按钮</li>
-            <li>选择 "从 URL 下载" 选项</li>
-            <li>粘贴订阅链接并点击确认</li>
-        </ol>
-        
-        <p>配置文件已经设置了自动选择延迟最低的节点，也可以手动选择节点。</p>
-        
-        <div class="update-time">
-            最后更新时间: <span id="lastUpdateTime">加载中...</span>
-        </div>
-    </div>
+<h1>Surfboard 和 Clash 配置订阅</h1>
+<div class="container">
+<h2>Surfboard 订阅链接</h2>
+<p>将以下链接添加到 Surfboard 应用中：</p>
+<code id="surfboardSubscriptionUrl"></code>
+<p><a href="" id="surfboardSubscriptionLink" class="button">点击直接添加到 Surfboard</a></p>
 
-    <script>
-        // 获取当前URL
-        const currentUrl = window.location.href;
-        const baseUrl = currentUrl.split('/index.html')[0];
-        const subscriptionUrl = baseUrl + '/surfboard.conf';
-        
-        // 更新页面上的订阅链接
-        document.getElementById('subscriptionUrl').textContent = subscriptionUrl;
-        document.getElementById('subscriptionLink').href = "surfboard:///install-config?url=" + encodeURIComponent(subscriptionUrl);
-        
-        // 获取最后更新时间
-        fetch('update_time.txt')
-            .then(response => response.text())
-            .then(data => {
-                document.getElementById('lastUpdateTime').textContent = data;
-            })
-            .catch(error => {
-                document.getElementById('lastUpdateTime').textContent = "未知";
-            });
-    </script>
+<h2>Clash 订阅链接</h2>
+<p>将以下链接添加到 Clash 应用中：</p>
+<code id="clashSubscriptionUrl"></code>
+<p><a href="" id="clashSubscriptionLink" class="button">点击直接添加到 Clash</a></p>
+
+<h2>使用说明</h2>
+<ol>
+<li>复制上面的订阅链接</li>
+<li>打开 Surfboard 或 Clash 应用</li>
+<li>点击右上角的 "+" 按钮</li>
+<li>选择 "从 URL 下载" 选项</li>
+<li>粘贴订阅链接并点击确认</li>
+</ol>
+<div class="update-time">最后更新时间: <span id="lastUpdateTime">加载中...</span></div>
+</div>
+<script>
+const currentUrl = window.location.href;
+const baseUrl = currentUrl.split('/index.html')[0];
+const surfboardSubscriptionUrl = baseUrl + '/surfboard.conf';
+const clashSubscriptionUrl = baseUrl + '/clash.yaml';
+document.getElementById('surfboardSubscriptionUrl').textContent = surfboardSubscriptionUrl;
+document.getElementById('surfboardSubscriptionLink').href = "surfboard:///install-config?url=" + encodeURIComponent(surfboardSubscriptionUrl);
+document.getElementById('clashSubscriptionUrl').textContent = clashSubscriptionUrl;
+document.getElementById('clashSubscriptionLink').href = "clash://install-config?url=" + encodeURIComponent(clashSubscriptionUrl);
+fetch('update_time.txt')
+.then(response => response.text())
+.then(data => { document.getElementById('lastUpdateTime').textContent = data; })
+.catch(error => { document.getElementById('lastUpdateTime').textContent = "未知"; });
+</script>
 </body>
 </html>
 """
@@ -249,45 +203,28 @@ def create_index_html():
 
 def main():
     """主程序"""
-    # 创建public目录（如果不存在）
     os.makedirs('public', exist_ok=True)
-    
-    # 获取SS节点
     print("正在获取节点信息...")
     ss_nodes = fetch_ss_nodes()
-    
     if not ss_nodes:
         print("未能获取到有效的SS节点信息")
         return
-    
     print(f"获取到 {len(ss_nodes)} 个SS节点")
-    
-    # 保存原始节点信息
     save_ss_nodes(ss_nodes)
-    
-    # 解析节点信息
-    nodes_info = []
-    for node_url in ss_nodes:
-        node_info = parse_ss_url(node_url)
-        if node_info:
-            nodes_info.append(node_info)
-    
+    nodes_info = [parse_ss_url(node_url) for node_url in ss_nodes if parse_ss_url(node_url)]
     if not nodes_info:
         print("无法解析任何节点信息")
         return
-    
-    # 生成配置文件内容
-    config_content = generate_improved_config(nodes_info)
-    
-    # 保存配置文件
-    save_config(config_content)
-    
+    # 生成Surfboard配置文件
+    surfboard_config_content = generate_improved_config(nodes_info)
+    save_config(surfboard_config_content, 'public/surfboard.conf')
+    # 生成Clash配置文件
+    clash_config_content = generate_clash_config(nodes_info)
+    save_config(clash_config_content, 'public/clash.yaml')
     # 保存更新时间
     save_update_time()
-    
-    # 创建索引页面
+    # 创建HTML页面
     create_index_html()
-    
     print("所有文件已生成完毕")
 
 if __name__ == "__main__":
