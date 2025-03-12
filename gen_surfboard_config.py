@@ -373,4 +373,5 @@ def create_index_html():
         f.write(html_content)
 
 def main():
-    """主程
+    """主程序"""
+    #
