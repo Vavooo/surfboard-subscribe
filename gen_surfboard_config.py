@@ -43,7 +43,10 @@ def fetch_ss_nodes(max_retry=3):
             
             ss_nodes = []
             for node in nodes['data']:
-                ss_url = f"ss://{base64.b64encode(f'aes-256-cfb:{node['password']}@{node['ip']}:{node['port']}'.encode()).decode()}##{node['title']}"
+                password = node['password']
+                ip = node['ip']
+                port = node['port']
+                ss_url = f"ss://{base64.b64encode(f'aes-256-cfb:{password}@{ip}:{port}'.encode()).decode()}##{node['title']}"
                 ss_nodes.append(ss_url)
             return ss_nodes
             
