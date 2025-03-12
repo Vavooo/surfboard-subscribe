@@ -1,99 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Surfboard 配置订阅</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            line-height: 1.6;
-            color: #333;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        h1 {
-            color: #2c3e50;
-        }
-        .container {
-            background-color: #f9f9f9;
-            border-radius: 5px;
-            padding: 20px;
-            margin-top: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        code {
-            background-color: #f1f1f1;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-family: monospace;
-        }
-        .update-time {
-            font-size: 0.9em;
-            color: #7f8c8d;
-            margin-top: 10px;
-        }
-        .button {
-            display: inline-block;
-            background-color: #3498db;
-            color: white;
-            padding: 10px 15px;
-            text-decoration: none;
-            border-radius: 4px;
-            margin-top: 15px;
-        }
-        .button:hover {
-            background-color: #2980b9;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Surfboard 和 Clash 配置订阅</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 0; padding: 20px; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; }
+h1 { color: #2c3e50; }
+.container { background-color: #f9f9f9; border-radius: 5px; padding: 20px; margin-top: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+code { background-color: #f1f1f1; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
+.update-time { font-size: 0.9em; color: #7f8c8d; margin-top: 10px; }
+.button { display: inline-block; background-color: #3498db; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; margin-top: 15px; }
+.button:hover { background-color: #2980b9; }
+</style>
 </head>
 <body>
-    <h1>Surfboard 配置订阅</h1>
-    <div class="container">
-        <h2>订阅链接</h2>
-        <p>将以下链接添加到 Surfboard 应用中：</p>
-        <code id="subscriptionUrl"></code>
-        <p>
-            <a href="" id="subscriptionLink" class="button">点击直接添加到 Surfboard</a>
-        </p>
-        
-        <h2>使用说明</h2>
-        <ol>
-            <li>复制上面的订阅链接</li>
-            <li>打开 Surfboard 应用</li>
-            <li>点击右上角的 "+" 按钮</li>
-            <li>选择 "从 URL 下载" 选项</li>
-            <li>粘贴订阅链接并点击确认</li>
-        </ol>
-        
-        <p>配置文件已经设置了自动选择延迟最低的节点，也可以手动选择节点。</p>
-        
-        <div class="update-time">
-            最后更新时间: <span id="lastUpdateTime">加载中...</span>
-        </div>
-    </div>
+<h1>Surfboard 和 Clash 配置订阅</h1>
+<div class="container">
+<h2>Surfboard 订阅链接</h2>
+<p>将以下链接添加到 Surfboard 应用中：</p>
+<code id="surfboardSubscriptionUrl"></code>
+<p><a href="" id="surfboardSubscriptionLink" class="button">点击直接添加到 Surfboard</a></p>
 
-    <script>
-        // 获取当前URL
-        const currentUrl = window.location.href;
-        const baseUrl = currentUrl.split('/index.html')[0];
-        const subscriptionUrl = baseUrl + '/surfboard.conf';
-        
-        // 更新页面上的订阅链接
-        document.getElementById('subscriptionUrl').textContent = subscriptionUrl;
-        document.getElementById('subscriptionLink').href = "surfboard:///install-config?url=" + encodeURIComponent(subscriptionUrl);
-        
-        // 获取最后更新时间
-        fetch('update_time.txt')
-            .then(response => response.text())
-            .then(data => {
-                document.getElementById('lastUpdateTime').textContent = data;
-            })
-            .catch(error => {
-                document.getElementById('lastUpdateTime').textContent = "未知";
-            });
-    </script>
+<h2>Clash 订阅链接</h2>
+<p>将以下链接添加到 Clash 应用中：</p>
+<code id="clashSubscriptionUrl"></code>
+<p><a href="" id="clashSubscriptionLink" class="button">点击直接添加到 Clash</a></p>
+
+<h2>使用说明</h2>
+<ol>
+<li>复制上面的订阅链接</li>
+<li>打开 Surfboard 或 Clash 应用</li>
+<li>点击右上角的 "+" 按钮</li>
+<li>选择 "从 URL 下载" 选项</li>
+<li>粘贴订阅链接并点击确认</li>
+</ol>
+<div class="update-time">最后更新时间: <span id="lastUpdateTime">加载中...</span></div>
+</div>
+<script>
+const currentUrl = window.location.href;
+const baseUrl = currentUrl.split('/index.html')[0];
+const surfboardSubscriptionUrl = baseUrl + '/surfboard.conf';
+const clashSubscriptionUrl = baseUrl + '/clash.yaml';
+document.getElementById('surfboardSubscriptionUrl').textContent = surfboardSubscriptionUrl;
+document.getElementById('surfboardSubscriptionLink').href = "surfboard:///install-config?url=" + encodeURIComponent(surfboardSubscriptionUrl);
+document.getElementById('clashSubscriptionUrl').textContent = clashSubscriptionUrl;
+document.getElementById('clashSubscriptionLink').href = "clash://install-config?url=" + encodeURIComponent(clashSubscriptionUrl);
+fetch('update_time.txt')
+.then(response => response.text())
+.then(data => { document.getElementById('lastUpdateTime').textContent = data; })
+.catch(error => { document.getElementById('lastUpdateTime').textContent = "未知"; });
+</script>
 </body>
 </html>
