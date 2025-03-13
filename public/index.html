@@ -86,6 +86,7 @@
         <div class="tab">
             <button class="tablinks active" onclick="openTab(event, 'Surfboard')">Surfboard</button>
             <button class="tablinks" onclick="openTab(event, 'Clash')">Clash</button>
+            <button class="tablinks" onclick="openTab(event, 'SingBox')">Sing-Box</button>
         </div>
 
         <div id="Surfboard" class="tabcontent" style="display: block;">
@@ -121,6 +122,21 @@
             </ol>
         </div>
         
+        <div id="SingBox" class="tabcontent">
+            <h2>Sing-Box 订阅链接</h2>
+            <p>将以下链接添加到 Sing-Box 应用中：</p>
+            <code id="singboxUrl"></code>
+            
+            <h3>使用说明</h3>
+            <ol>
+                <li>复制上面的订阅链接</li>
+                <li>打开 Sing-Box 应用</li>
+                <li>点击 "+" 添加配置</li>
+                <li>选择 "URL" 或 "从 URL 导入" 选项</li>
+                <li>粘贴订阅链接并点击确认</li>
+            </ol>
+        </div>
+        
         <p>配置文件已经设置了自动选择延迟最低的节点，也可以手动选择节点。</p>
         
         <div class="update-time">
@@ -134,11 +150,13 @@
         const baseUrl = currentUrl.split('/index.html')[0];
         const surfboardUrl = baseUrl + '/surfboard.conf';
         const clashUrl = baseUrl + '/clash.yaml';
+        const singboxUrl = baseUrl + '/singbox.json';
         
         // 更新页面上的订阅链接
         document.getElementById('surfboardUrl').textContent = surfboardUrl;
         document.getElementById('surfboardLink').href = "surfboard:///install-config?url=" + encodeURIComponent(surfboardUrl);
         document.getElementById('clashUrl').textContent = clashUrl;
+        document.getElementById('singboxUrl').textContent = singboxUrl;
         
         // 获取最后更新时间
         fetch('update_time.txt')
