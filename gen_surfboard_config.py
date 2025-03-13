@@ -178,19 +178,63 @@ def generate_clash_config(nodes_info):
     
     return yaml.dump(clash_config, allow_unicode=True, sort_keys=False)
 
+def generate_v2ray_config(nodes_info):
+    """生成V2Ray配置文件内容"""
+    if not nodes_info:
+        return None
+    
+    v2ray_config = []
+    
+    for node in nodes_info:
+        # 转换SS节点为V2Ray可识别的格式
+        v2ray_node = {
+            "add": node["server"],
+            "port": node["port"],
+            "id": "00000000-0000-0000-0000-000000000000",  # 这是一个占位符，V2Ray配置需要UUID
+            "aid": "0",
+            "net": "tcp",
+            "type": "none",
+            "host": "",
+            "path": "",
+            "tls": "",
+            "ps": node["name"],
+            # 特殊处理Shadowsocks信息
+            "protocol": "shadowsocks",
+            "settings": {
+                "servers": [
+                    {
+                        "address": node["server"],
+                        "port": node["port"],
+                        "method": node["method"],
+                        "password": node["password"]
+                    }
+                ]
+            }
+        }
+        v2ray_config.append(v2ray_node)
+    
+    # 转换为Base64编码的订阅格式
+    v2ray_json = json.dumps(v2ray_config)
+    v2ray_subscription = base64.b64encode(v2ray_json.encode('utf-8')).decode('utf-8')
+    
+    return v2ray_subscription
+
 def save_ss_nodes(ss_nodes):
     """保存原始SS节点到文件"""
     with open('public/ss_nodes.txt', 'w', encoding='utf-8') as f:
         for node in ss_nodes:
             f.write(f"{node}\n")
 
-def save_config(config_content, clash_content):
+def save_config(config_content, clash_content, v2ray_content):
     """保存配置文件内容"""
     with open('public/surfboard.conf', 'w', encoding='utf-8') as f:
         f.write(config_content)
     
     with open('public/clash.yaml', 'w', encoding='utf-8') as f:
         f.write(clash_content)
+    
+    with open('public/v2ray.txt', 'w', encoding='utf-8') as f:
+        f.write(v2ray_content)
 
 def save_update_time():
     """保存更新时间"""
@@ -288,6 +332,7 @@ def create_index_html():
         <div class="tab">
             <button class="tablinks active" onclick="openTab(event, 'Surfboard')">Surfboard</button>
             <button class="tablinks" onclick="openTab(event, 'Clash')">Clash</button>
+            <button class="tablinks" onclick="openTab(event, 'V2Ray')">V2Ray</button>
         </div>
 
         <div id="Surfboard" class="tabcontent" style="display: block;">
@@ -323,6 +368,21 @@ def create_index_html():
             </ol>
         </div>
         
+        <div id="V2Ray" class="tabcontent">
+            <h2>V2Ray 订阅链接</h2>
+            <p>将以下链接添加到 V2Ray 应用中：</p>
+            <code id="v2rayUrl"></code>
+            
+            <h3>使用说明</h3>
+            <ol>
+                <li>复制上面的订阅链接</li>
+                <li>打开 V2Ray 应用</li>
+                <li>点击添加订阅</li>
+                <li>粘贴订阅链接并点击确认</li>
+                <li>点击更新订阅</li>
+            </ol>
+        </div>
+        
         <p>配置文件已经设置了自动选择延迟最低的节点，也可以手动选择节点。</p>
         
         <div class="update-time">
@@ -336,11 +396,13 @@ def create_index_html():
         const baseUrl = currentUrl.split('/index.html')[0];
         const surfboardUrl = baseUrl + '/surfboard.conf';
         const clashUrl = baseUrl + '/clash.yaml';
+        const v2rayUrl = baseUrl + '/v2ray.txt';
         
         // 更新页面上的订阅链接
         document.getElementById('surfboardUrl').textContent = surfboardUrl;
         document.getElementById('surfboardLink').href = "surfboard:///install-config?url=" + encodeURIComponent(surfboardUrl);
         document.getElementById('clashUrl').textContent = clashUrl;
+        document.getElementById('v2rayUrl').textContent = v2rayUrl;
         
         // 获取最后更新时间
         fetch('update_time.txt')
@@ -404,9 +466,10 @@ def main():
     # 生成配置文件内容
     surfboard_config = generate_improved_config(nodes_info)
     clash_config = generate_clash_config(nodes_info)
+    v2ray_config = generate_v2ray_config(nodes_info)
     
     # 保存配置文件
-    save_config(surfboard_config, clash_config)
+    save_config(surfboard_config, clash_config, v2ray_config)
     
     # 保存更新时间
     save_update_time()
