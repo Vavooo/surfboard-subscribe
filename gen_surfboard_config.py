@@ -8,7 +8,6 @@ import re
 import os
 import yaml
 from datetime import datetime
-import uuid
 
 def fetch_ss_nodes():
     """获取SS节点信息"""
@@ -193,11 +192,11 @@ def generate_singbox_config(nodes_info):
             "servers": [
                 {
                     "tag": "google",
-                    "address": "https://dns.google/dns-query"
+                    "address": "8.8.8.8"
                 },
                 {
                     "tag": "local",
-                    "address": "https://223.5.5.5/dns-query",
+                    "address": "223.5.5.5",
                     "detour": "direct"
                 }
             ],
@@ -214,7 +213,7 @@ def generate_singbox_config(nodes_info):
                 "type": "tun",
                 "tag": "tun-in",
                 "interface_name": "tun0",
-                "stack": "gvisor",
+                "stack": "system",
                 "mtu": 9000,
                 "inet4_address": "172.19.0.1/30",
                 "auto_route": True,
