@@ -374,4 +374,47 @@ def create_index_html():
 
 def main():
     """主程序"""
-    #
+    # 创建public目录（如果不存在）
+    os.makedirs('public', exist_ok=True)
+    
+    # 获取SS节点
+    print("正在获取节点信息...")
+    ss_nodes = fetch_ss_nodes()
+    
+    if not ss_nodes:
+        print("未能获取到有效的SS节点信息")
+        return
+    
+    print(f"获取到 {len(ss_nodes)} 个SS节点")
+    
+    # 保存原始节点信息
+    save_ss_nodes(ss_nodes)
+    
+    # 解析节点信息
+    nodes_info = []
+    for node_url in ss_nodes:
+        node_info = parse_ss_url(node_url)
+        if node_info:
+            nodes_info.append(node_info)
+    
+    if not nodes_info:
+        print("无法解析任何节点信息")
+        return
+    
+    # 生成配置文件内容
+    surfboard_config = generate_improved_config(nodes_info)
+    clash_config = generate_clash_config(nodes_info)
+    
+    # 保存配置文件
+    save_config(surfboard_config, clash_config)
+    
+    # 保存更新时间
+    save_update_time()
+    
+    # 创建索引页面
+    create_index_html()
+    
+    print("所有文件已生成完毕")
+
+if __name__ == "__main__":
+    main()
