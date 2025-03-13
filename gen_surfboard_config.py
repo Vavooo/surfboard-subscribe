@@ -179,18 +179,39 @@ def generate_clash_config(nodes_info):
     return yaml.dump(clash_config, allow_unicode=True, sort_keys=False)
 
 def generate_v2ray_config(nodes_info):
-    """生成V2Ray配置链接列表，然后编码为订阅格式"""
+    """生成V2Ray配置链接列表，增强兼容性"""
     if not nodes_info:
         return None
     
-    # 为每个Shadowsocks节点创建一个标准格式的ss://链接
+    # 同时准备SIP002格式和旧格式的链接，提高兼容性
     ss_links = []
+    
     for node in nodes_info:
-        # 标准SS URI格式
+        # 1. SIP002格式 (现代格式): ss://BASE64(method:password)@server:port/?plugin=plugin_params#name
         method_password = f"{node['method']}:{node['password']}"
-        method_password_base64 = base64.b64encode(method_password.encode()).decode()
-        ss_link = f"ss://{method_password_base64}@{node['server']}:{node['port']}#{urllib.parse.quote(node['name'])}"
-        ss_links.append(ss_link)
+        method_password_base64 = base64.urlsafe_b64encode(method_password.encode()).decode()
+        node_name = urllib.parse.quote(node['original_name'] or node['name'])
+        
+        # 添加辅助参数增强兼容性
+        query_params = {
+            "outline": "1",  # 兼容Outline客户端
+        }
+        
+        query_string = ""
+        if query_params:
+            query_parts = []
+            for key, value in query_params.items():
+                query_parts.append(f"{key}={urllib.parse.quote(str(value))}")
+            query_string = "?" + "&".join(query_parts)
+        
+        sip002_link = f"ss://{method_password_base64}@{node['server']}:{node['port']}{query_string}#{node_name}"
+        ss_links.append(sip002_link)
+        
+        # 2. 添加直接的shadowsocks格式链接作为备份，增强兼容性
+        # ss://method:password@server:port#name
+        direct_ss = f"ss://{node['method']}:{node['password']}@{node['server']}:{node['port']}#{node_name}"
+        encoded_direct = base64.urlsafe_b64encode(direct_ss.encode()).decode().rstrip('=')
+        ss_links.append(f"ss://{encoded_direct}")
     
     # 将所有链接合并成一个字符串，每行一个链接
     links_text = "\n".join(ss_links)
@@ -202,12 +223,14 @@ def generate_v2ray_config(nodes_info):
 
 def save_ss_nodes(ss_nodes):
     """保存原始SS节点到文件"""
+    os.makedirs('public', exist_ok=True)
     with open('public/ss_nodes.txt', 'w', encoding='utf-8') as f:
         for node in ss_nodes:
             f.write(f"{node}\n")
 
 def save_config(config_content, clash_content, v2ray_content):
     """保存配置文件内容"""
+    os.makedirs('public', exist_ok=True)
     with open('public/surfboard.conf', 'w', encoding='utf-8') as f:
         f.write(config_content)
     
@@ -216,10 +239,16 @@ def save_config(config_content, clash_content, v2ray_content):
     
     with open('public/v2ray.txt', 'w', encoding='utf-8') as f:
         f.write(v2ray_content)
+    
+    # 为方便调试，保存一个未编码的v2ray链接文件
+    ss_links = base64.b64decode(v2ray_content).decode('utf-8')
+    with open('public/v2ray_links.txt', 'w', encoding='utf-8') as f:
+        f.write(ss_links)
 
 def save_update_time():
     """保存更新时间"""
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    os.makedirs('public', exist_ok=True)
     with open('public/update_time.txt', 'w', encoding='utf-8') as f:
         f.write(now)
 
@@ -362,6 +391,14 @@ def create_index_html():
                 <li>粘贴订阅链接并点击确认</li>
                 <li>点击更新订阅</li>
             </ol>
+            
+            <h3>常见问题解决</h3>
+            <p>如果导入后节点无法连接:</p>
+            <ul>
+                <li>尝试重启客户端应用</li>
+                <li>检查是否有正确选择节点</li>
+                <li>尝试使用 <a href="v2ray_links.txt" target="_blank">单节点链接</a> 手动添加</li>
+            </ul>
         </div>
         
         <p>配置文件已经设置了自动选择延迟最低的节点，也可以手动选择节点。</p>
@@ -412,6 +449,7 @@ def create_index_html():
 </body>
 </html>
 """
+    os.makedirs('public', exist_ok=True)
     with open('public/index.html', 'w', encoding='utf-8') as f:
         f.write(html_content)
 
