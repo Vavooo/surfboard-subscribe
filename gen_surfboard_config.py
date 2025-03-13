@@ -8,6 +8,7 @@ import re
 import os
 import yaml
 from datetime import datetime
+import uuid
 
 def fetch_ss_nodes():
     """获取SS节点信息"""
@@ -178,19 +179,146 @@ def generate_clash_config(nodes_info):
     
     return yaml.dump(clash_config, allow_unicode=True, sort_keys=False)
 
+def generate_singbox_config(nodes_info):
+    """生成Sing-Box配置文件内容"""
+    if not nodes_info:
+        return None
+    
+    singbox_config = {
+        "log": {
+            "level": "info",
+            "timestamp": True
+        },
+        "dns": {
+            "servers": [
+                {
+                    "tag": "google",
+                    "address": "https://dns.google/dns-query"
+                },
+                {
+                    "tag": "local",
+                    "address": "https://223.5.5.5/dns-query",
+                    "detour": "direct"
+                }
+            ],
+            "rules": [
+                {
+                    "domain": ["geosite:cn"],
+                    "server": "local"
+                }
+            ],
+            "strategy": "ipv4_only"
+        },
+        "inbounds": [
+            {
+                "type": "tun",
+                "tag": "tun-in",
+                "interface_name": "tun0",
+                "stack": "gvisor",
+                "mtu": 9000,
+                "inet4_address": "172.19.0.1/30",
+                "auto_route": True,
+                "strict_route": True,
+                "sniff": True
+            }
+        ],
+        "outbounds": [
+            {
+                "type": "selector",
+                "tag": "proxy",
+                "outbounds": ["auto", "manual"],
+                "default": "auto"
+            },
+            {
+                "type": "urltest",
+                "tag": "auto",
+                "outbounds": [],
+                "url": "https://www.gstatic.com/generate_204",
+                "interval": "5m",
+                "tolerance": 100
+            },
+            {
+                "type": "selector",
+                "tag": "manual",
+                "outbounds": []
+            },
+            {
+                "type": "direct",
+                "tag": "direct"
+            },
+            {
+                "type": "block",
+                "tag": "block"
+            },
+            {
+                "type": "dns",
+                "tag": "dns-out"
+            }
+        ],
+        "route": {
+            "rules": [
+                {
+                    "protocol": "dns",
+                    "outbound": "dns-out"
+                },
+                {
+                    "domain": ["geosite:category-ads-all"],
+                    "outbound": "block"
+                },
+                {
+                    "domain": ["geosite:cn"],
+                    "geoip": ["cn"],
+                    "outbound": "direct"
+                },
+                {
+                    "geosite": ["geolocation-!cn"],
+                    "outbound": "proxy"
+                }
+            ],
+            "final": "proxy",
+            "auto_detect_interface": True
+        }
+    }
+    
+    # 添加代理节点
+    manual_outbounds = []
+    for node in nodes_info:
+        outbound_tag = node["name"]
+        manual_outbounds.append(outbound_tag)
+        
+        proxy = {
+            "type": "shadowsocks",
+            "tag": outbound_tag,
+            "server": node["server"],
+            "server_port": node["port"],
+            "method": node["method"],
+            "password": node["password"],
+            "udp_over_tcp": False
+        }
+        singbox_config["outbounds"].append(proxy)
+    
+    # 更新自动和手动选择器
+    singbox_config["outbounds"][1]["outbounds"] = manual_outbounds
+    singbox_config["outbounds"][2]["outbounds"] = manual_outbounds
+    
+    return json.dumps(singbox_config, ensure_ascii=False, indent=2)
+
 def save_ss_nodes(ss_nodes):
     """保存原始SS节点到文件"""
     with open('public/ss_nodes.txt', 'w', encoding='utf-8') as f:
         for node in ss_nodes:
             f.write(f"{node}\n")
 
-def save_config(config_content, clash_content):
+def save_config(config_content, clash_content, singbox_content):
     """保存配置文件内容"""
     with open('public/surfboard.conf', 'w', encoding='utf-8') as f:
         f.write(config_content)
     
     with open('public/clash.yaml', 'w', encoding='utf-8') as f:
         f.write(clash_content)
+        
+    with open('public/singbox.json', 'w', encoding='utf-8') as f:
+        f.write(singbox_content)
 
 def save_update_time():
     """保存更新时间"""
@@ -288,6 +416,7 @@ def create_index_html():
         <div class="tab">
             <button class="tablinks active" onclick="openTab(event, 'Surfboard')">Surfboard</button>
             <button class="tablinks" onclick="openTab(event, 'Clash')">Clash</button>
+            <button class="tablinks" onclick="openTab(event, 'SingBox')">Sing-Box</button>
         </div>
 
         <div id="Surfboard" class="tabcontent" style="display: block;">
@@ -323,6 +452,21 @@ def create_index_html():
             </ol>
         </div>
         
+        <div id="SingBox" class="tabcontent">
+            <h2>Sing-Box 订阅链接</h2>
+            <p>将以下链接添加到 Sing-Box 应用中：</p>
+            <code id="singboxUrl"></code>
+            
+            <h3>使用说明</h3>
+            <ol>
+                <li>复制上面的订阅链接</li>
+                <li>打开 Sing-Box 应用</li>
+                <li>点击 "+" 添加配置</li>
+                <li>选择 "URL" 或 "从 URL 导入" 选项</li>
+                <li>粘贴订阅链接并点击确认</li>
+            </ol>
+        </div>
+        
         <p>配置文件已经设置了自动选择延迟最低的节点，也可以手动选择节点。</p>
         
         <div class="update-time">
@@ -336,11 +480,13 @@ def create_index_html():
         const baseUrl = currentUrl.split('/index.html')[0];
         const surfboardUrl = baseUrl + '/surfboard.conf';
         const clashUrl = baseUrl + '/clash.yaml';
+        const singboxUrl = baseUrl + '/singbox.json';
         
         // 更新页面上的订阅链接
         document.getElementById('surfboardUrl').textContent = surfboardUrl;
         document.getElementById('surfboardLink').href = "surfboard:///install-config?url=" + encodeURIComponent(surfboardUrl);
         document.getElementById('clashUrl').textContent = clashUrl;
+        document.getElementById('singboxUrl').textContent = singboxUrl;
         
         // 获取最后更新时间
         fetch('update_time.txt')
@@ -404,9 +550,10 @@ def main():
     # 生成配置文件内容
     surfboard_config = generate_improved_config(nodes_info)
     clash_config = generate_clash_config(nodes_info)
+    singbox_config = generate_singbox_config(nodes_info)
     
     # 保存配置文件
-    save_config(surfboard_config, clash_config)
+    save_config(surfboard_config, clash_config, singbox_config)
     
     # 保存更新时间
     save_update_time()
