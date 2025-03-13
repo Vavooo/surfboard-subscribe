@@ -179,45 +179,26 @@ def generate_clash_config(nodes_info):
     return yaml.dump(clash_config, allow_unicode=True, sort_keys=False)
 
 def generate_v2ray_config(nodes_info):
-    """生成V2Ray配置文件内容"""
+    """生成V2Ray配置链接列表，然后编码为订阅格式"""
     if not nodes_info:
         return None
     
-    v2ray_config = []
-    
+    # 为每个Shadowsocks节点创建一个标准格式的ss://链接
+    ss_links = []
     for node in nodes_info:
-        # 转换SS节点为V2Ray可识别的格式
-        v2ray_node = {
-            "add": node["server"],
-            "port": node["port"],
-            "id": "00000000-0000-0000-0000-000000000000",  # 这是一个占位符，V2Ray配置需要UUID
-            "aid": "0",
-            "net": "tcp",
-            "type": "none",
-            "host": "",
-            "path": "",
-            "tls": "",
-            "ps": node["name"],
-            # 特殊处理Shadowsocks信息
-            "protocol": "shadowsocks",
-            "settings": {
-                "servers": [
-                    {
-                        "address": node["server"],
-                        "port": node["port"],
-                        "method": node["method"],
-                        "password": node["password"]
-                    }
-                ]
-            }
-        }
-        v2ray_config.append(v2ray_node)
+        # 标准SS URI格式
+        method_password = f"{node['method']}:{node['password']}"
+        method_password_base64 = base64.b64encode(method_password.encode()).decode()
+        ss_link = f"ss://{method_password_base64}@{node['server']}:{node['port']}#{urllib.parse.quote(node['name'])}"
+        ss_links.append(ss_link)
     
-    # 转换为Base64编码的订阅格式
-    v2ray_json = json.dumps(v2ray_config)
-    v2ray_subscription = base64.b64encode(v2ray_json.encode('utf-8')).decode('utf-8')
+    # 将所有链接合并成一个字符串，每行一个链接
+    links_text = "\n".join(ss_links)
     
-    return v2ray_subscription
+    # Base64编码整个内容
+    subscription_content = base64.b64encode(links_text.encode()).decode()
+    
+    return subscription_content
 
 def save_ss_nodes(ss_nodes):
     """保存原始SS节点到文件"""
