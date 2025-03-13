@@ -178,77 +178,23 @@ def generate_clash_config(nodes_info):
     
     return yaml.dump(clash_config, allow_unicode=True, sort_keys=False)
 
-def generate_v2ray_config(nodes_info):
-    """生成V2Ray配置链接列表，增强兼容性"""
-    if not nodes_info:
-        return None
-    
-    # 同时准备SIP002格式和旧格式的链接，提高兼容性
-    ss_links = []
-    
-    for node in nodes_info:
-        # 1. SIP002格式 (现代格式): ss://BASE64(method:password)@server:port/?plugin=plugin_params#name
-        method_password = f"{node['method']}:{node['password']}"
-        method_password_base64 = base64.urlsafe_b64encode(method_password.encode()).decode()
-        node_name = urllib.parse.quote(node['original_name'] or node['name'])
-        
-        # 添加辅助参数增强兼容性
-        query_params = {
-            "outline": "1",  # 兼容Outline客户端
-        }
-        
-        query_string = ""
-        if query_params:
-            query_parts = []
-            for key, value in query_params.items():
-                query_parts.append(f"{key}={urllib.parse.quote(str(value))}")
-            query_string = "?" + "&".join(query_parts)
-        
-        sip002_link = f"ss://{method_password_base64}@{node['server']}:{node['port']}{query_string}#{node_name}"
-        ss_links.append(sip002_link)
-        
-        # 2. 添加直接的shadowsocks格式链接作为备份，增强兼容性
-        # ss://method:password@server:port#name
-        direct_ss = f"ss://{node['method']}:{node['password']}@{node['server']}:{node['port']}#{node_name}"
-        encoded_direct = base64.urlsafe_b64encode(direct_ss.encode()).decode().rstrip('=')
-        ss_links.append(f"ss://{encoded_direct}")
-    
-    # 将所有链接合并成一个字符串，每行一个链接
-    links_text = "\n".join(ss_links)
-    
-    # Base64编码整个内容
-    subscription_content = base64.b64encode(links_text.encode()).decode()
-    
-    return subscription_content
-
 def save_ss_nodes(ss_nodes):
     """保存原始SS节点到文件"""
-    os.makedirs('public', exist_ok=True)
     with open('public/ss_nodes.txt', 'w', encoding='utf-8') as f:
         for node in ss_nodes:
             f.write(f"{node}\n")
 
-def save_config(config_content, clash_content, v2ray_content):
+def save_config(config_content, clash_content):
     """保存配置文件内容"""
-    os.makedirs('public', exist_ok=True)
     with open('public/surfboard.conf', 'w', encoding='utf-8') as f:
         f.write(config_content)
     
     with open('public/clash.yaml', 'w', encoding='utf-8') as f:
         f.write(clash_content)
-    
-    with open('public/v2ray.txt', 'w', encoding='utf-8') as f:
-        f.write(v2ray_content)
-    
-    # 为方便调试，保存一个未编码的v2ray链接文件
-    ss_links = base64.b64decode(v2ray_content).decode('utf-8')
-    with open('public/v2ray_links.txt', 'w', encoding='utf-8') as f:
-        f.write(ss_links)
 
 def save_update_time():
     """保存更新时间"""
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    os.makedirs('public', exist_ok=True)
     with open('public/update_time.txt', 'w', encoding='utf-8') as f:
         f.write(now)
 
@@ -342,7 +288,6 @@ def create_index_html():
         <div class="tab">
             <button class="tablinks active" onclick="openTab(event, 'Surfboard')">Surfboard</button>
             <button class="tablinks" onclick="openTab(event, 'Clash')">Clash</button>
-            <button class="tablinks" onclick="openTab(event, 'V2Ray')">V2Ray</button>
         </div>
 
         <div id="Surfboard" class="tabcontent" style="display: block;">
@@ -378,29 +323,6 @@ def create_index_html():
             </ol>
         </div>
         
-        <div id="V2Ray" class="tabcontent">
-            <h2>V2Ray 订阅链接</h2>
-            <p>将以下链接添加到 V2Ray 应用中：</p>
-            <code id="v2rayUrl"></code>
-            
-            <h3>使用说明</h3>
-            <ol>
-                <li>复制上面的订阅链接</li>
-                <li>打开 V2Ray 应用</li>
-                <li>点击添加订阅</li>
-                <li>粘贴订阅链接并点击确认</li>
-                <li>点击更新订阅</li>
-            </ol>
-            
-            <h3>常见问题解决</h3>
-            <p>如果导入后节点无法连接:</p>
-            <ul>
-                <li>尝试重启客户端应用</li>
-                <li>检查是否有正确选择节点</li>
-                <li>尝试使用 <a href="v2ray_links.txt" target="_blank">单节点链接</a> 手动添加</li>
-            </ul>
-        </div>
-        
         <p>配置文件已经设置了自动选择延迟最低的节点，也可以手动选择节点。</p>
         
         <div class="update-time">
@@ -414,13 +336,11 @@ def create_index_html():
         const baseUrl = currentUrl.split('/index.html')[0];
         const surfboardUrl = baseUrl + '/surfboard.conf';
         const clashUrl = baseUrl + '/clash.yaml';
-        const v2rayUrl = baseUrl + '/v2ray.txt';
         
         // 更新页面上的订阅链接
         document.getElementById('surfboardUrl').textContent = surfboardUrl;
         document.getElementById('surfboardLink').href = "surfboard:///install-config?url=" + encodeURIComponent(surfboardUrl);
         document.getElementById('clashUrl').textContent = clashUrl;
-        document.getElementById('v2rayUrl').textContent = v2rayUrl;
         
         // 获取最后更新时间
         fetch('update_time.txt')
@@ -449,54 +369,9 @@ def create_index_html():
 </body>
 </html>
 """
-    os.makedirs('public', exist_ok=True)
     with open('public/index.html', 'w', encoding='utf-8') as f:
         f.write(html_content)
 
 def main():
     """主程序"""
-    # 创建public目录（如果不存在）
-    os.makedirs('public', exist_ok=True)
-    
-    # 获取SS节点
-    print("正在获取节点信息...")
-    ss_nodes = fetch_ss_nodes()
-    
-    if not ss_nodes:
-        print("未能获取到有效的SS节点信息")
-        return
-    
-    print(f"获取到 {len(ss_nodes)} 个SS节点")
-    
-    # 保存原始节点信息
-    save_ss_nodes(ss_nodes)
-    
-    # 解析节点信息
-    nodes_info = []
-    for node_url in ss_nodes:
-        node_info = parse_ss_url(node_url)
-        if node_info:
-            nodes_info.append(node_info)
-    
-    if not nodes_info:
-        print("无法解析任何节点信息")
-        return
-    
-    # 生成配置文件内容
-    surfboard_config = generate_improved_config(nodes_info)
-    clash_config = generate_clash_config(nodes_info)
-    v2ray_config = generate_v2ray_config(nodes_info)
-    
-    # 保存配置文件
-    save_config(surfboard_config, clash_config, v2ray_config)
-    
-    # 保存更新时间
-    save_update_time()
-    
-    # 创建索引页面
-    create_index_html()
-    
-    print("所有文件已生成完毕")
-
-if __name__ == "__main__":
-    main()
+    #
