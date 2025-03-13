@@ -223,25 +223,6 @@ def generate_singbox_config(nodes_info):
         ],
         "outbounds": [
             {
-                "type": "selector",
-                "tag": "proxy",
-                "outbounds": ["auto", "manual"],
-                "default": "auto"
-            },
-            {
-                "type": "urltest",
-                "tag": "auto",
-                "outbounds": [],
-                "url": "https://www.gstatic.com/generate_204",
-                "interval": "5m",
-                "tolerance": 100
-            },
-            {
-                "type": "selector",
-                "tag": "manual",
-                "outbounds": []
-            },
-            {
                 "type": "direct",
                 "tag": "direct"
             },
@@ -268,10 +249,6 @@ def generate_singbox_config(nodes_info):
                     "domain": ["geosite:cn"],
                     "geoip": ["cn"],
                     "outbound": "direct"
-                },
-                {
-                    "geosite": ["geolocation-!cn"],
-                    "outbound": "proxy"
                 }
             ],
             "final": "proxy",
@@ -279,11 +256,34 @@ def generate_singbox_config(nodes_info):
         }
     }
     
+    # 创建自动代理组和手动代理组
+    auto_group = {
+        "type": "urltest",
+        "tag": "auto",
+        "outbounds": [],
+        "url": "https://www.gstatic.com/generate_204",
+        "interval": "5m",
+        "tolerance": 100
+    }
+    
+    manual_group = {
+        "type": "selector",
+        "tag": "manual",
+        "outbounds": []
+    }
+    
+    proxy_group = {
+        "type": "selector",
+        "tag": "proxy",
+        "outbounds": ["auto", "manual"],
+        "default": "auto"
+    }
+    
     # 添加代理节点
-    manual_outbounds = []
+    node_outbounds = []
     for node in nodes_info:
         outbound_tag = node["name"]
-        manual_outbounds.append(outbound_tag)
+        node_outbounds.append(outbound_tag)
         
         proxy = {
             "type": "shadowsocks",
@@ -296,9 +296,20 @@ def generate_singbox_config(nodes_info):
         }
         singbox_config["outbounds"].append(proxy)
     
-    # 更新自动和手动选择器
-    singbox_config["outbounds"][1]["outbounds"] = manual_outbounds
-    singbox_config["outbounds"][2]["outbounds"] = manual_outbounds
+    # 更新代理组
+    auto_group["outbounds"] = node_outbounds.copy()
+    manual_group["outbounds"] = node_outbounds.copy()
+    
+    # 按顺序添加代理组到outbounds
+    singbox_config["outbounds"].insert(0, proxy_group)
+    singbox_config["outbounds"].insert(1, auto_group)
+    singbox_config["outbounds"].insert(2, manual_group)
+    
+    # 添加geolocation规则
+    singbox_config["route"]["rules"].append({
+        "geosite": ["geolocation-!cn"],
+        "outbound": "proxy"
+    })
     
     return json.dumps(singbox_config, ensure_ascii=False, indent=2)
 
