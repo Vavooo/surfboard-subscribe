@@ -52,18 +52,18 @@
       "type": "urltest",
       "tag": "auto",
       "outbounds": [
-        "US_Houston",
-        "HK_New_Territories",
         "KR_Incheon",
         "JP_Tokyo_2",
-        "JP_Osaka",
         "US_Dallas_2",
+        "JP_Osaka",
+        "SG_Singapore",
+        "CA_Vancouver",
+        "HK_New_Territories",
+        "HK_Kowloon",
         "JP_Tokyo",
         "TW_Taipei",
-        "HK_Kowloon",
-        "HK_Los_Angeles",
-        "SG_Singapore",
-        "CA_Vancouver"
+        "US_Houston",
+        "HK_Los_Angeles"
       ],
       "url": "https://www.gstatic.com/generate_204",
       "interval": "5m",
@@ -73,18 +73,18 @@
       "type": "selector",
       "tag": "manual",
       "outbounds": [
-        "US_Houston",
-        "HK_New_Territories",
         "KR_Incheon",
         "JP_Tokyo_2",
-        "JP_Osaka",
         "US_Dallas_2",
+        "JP_Osaka",
+        "SG_Singapore",
+        "CA_Vancouver",
+        "HK_New_Territories",
+        "HK_Kowloon",
         "JP_Tokyo",
         "TW_Taipei",
-        "HK_Kowloon",
-        "HK_Los_Angeles",
-        "SG_Singapore",
-        "CA_Vancouver"
+        "US_Houston",
+        "HK_Los_Angeles"
       ]
     },
     {
@@ -101,26 +101,8 @@
     },
     {
       "type": "shadowsocks",
-      "tag": "US_Houston",
-      "server": "54.200.106.206",
-      "server_port": 443,
-      "method": "aes-256-cfb",
-      "password": "amazonskr05",
-      "udp_over_tcp": false
-    },
-    {
-      "type": "shadowsocks",
-      "tag": "HK_New_Territories",
-      "server": "3.112.18.99",
-      "server_port": 443,
-      "method": "aes-256-cfb",
-      "password": "amazonskr05",
-      "udp_over_tcp": false
-    },
-    {
-      "type": "shadowsocks",
       "tag": "KR_Incheon",
-      "server": "52.195.175.110",
+      "server": "57.180.35.64",
       "server_port": 443,
       "method": "aes-256-cfb",
       "password": "amazonskr05",
@@ -129,16 +111,7 @@
     {
       "type": "shadowsocks",
       "tag": "JP_Tokyo_2",
-      "server": "43.207.150.238",
-      "server_port": 443,
-      "method": "aes-256-cfb",
-      "password": "amazonskr05",
-      "udp_over_tcp": false
-    },
-    {
-      "type": "shadowsocks",
-      "tag": "JP_Osaka",
-      "server": "43.203.206.73",
+      "server": "3.112.13.110",
       "server_port": 443,
       "method": "aes-256-cfb",
       "password": "amazonskr05",
@@ -147,42 +120,6 @@
     {
       "type": "shadowsocks",
       "tag": "US_Dallas_2",
-      "server": "34.222.2.112",
-      "server_port": 443,
-      "method": "aes-256-cfb",
-      "password": "amazonskr05",
-      "udp_over_tcp": false
-    },
-    {
-      "type": "shadowsocks",
-      "tag": "JP_Tokyo",
-      "server": "43.203.249.105",
-      "server_port": 443,
-      "method": "aes-256-cfb",
-      "password": "amazonskr05",
-      "udp_over_tcp": false
-    },
-    {
-      "type": "shadowsocks",
-      "tag": "TW_Taipei",
-      "server": "13.230.142.42",
-      "server_port": 443,
-      "method": "aes-256-cfb",
-      "password": "amazonskr05",
-      "udp_over_tcp": false
-    },
-    {
-      "type": "shadowsocks",
-      "tag": "HK_Kowloon",
-      "server": "43.201.85.71",
-      "server_port": 443,
-      "method": "aes-256-cfb",
-      "password": "amazonskr05",
-      "udp_over_tcp": false
-    },
-    {
-      "type": "shadowsocks",
-      "tag": "HK_Los_Angeles",
       "server": "52.27.128.220",
       "server_port": 443,
       "method": "aes-256-cfb",
@@ -191,8 +128,17 @@
     },
     {
       "type": "shadowsocks",
+      "tag": "JP_Osaka",
+      "server": "43.201.254.74",
+      "server_port": 443,
+      "method": "aes-256-cfb",
+      "password": "amazonskr05",
+      "udp_over_tcp": false
+    },
+    {
+      "type": "shadowsocks",
       "tag": "SG_Singapore",
-      "server": "13.230.168.61",
+      "server": "43.203.249.105",
       "server_port": 443,
       "method": "aes-256-cfb",
       "password": "amazonskr05",
@@ -202,6 +148,60 @@
       "type": "shadowsocks",
       "tag": "CA_Vancouver",
       "server": "54.188.6.233",
+      "server_port": 443,
+      "method": "aes-256-cfb",
+      "password": "amazonskr05",
+      "udp_over_tcp": false
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "HK_New_Territories",
+      "server": "54.169.134.156",
+      "server_port": 443,
+      "method": "aes-256-cfb",
+      "password": "amazonskr05",
+      "udp_over_tcp": false
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "HK_Kowloon",
+      "server": "13.231.144.255",
+      "server_port": 443,
+      "method": "aes-256-cfb",
+      "password": "amazonskr05",
+      "udp_over_tcp": false
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "JP_Tokyo",
+      "server": "54.180.1.213",
+      "server_port": 443,
+      "method": "aes-256-cfb",
+      "password": "amazonskr05",
+      "udp_over_tcp": false
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "TW_Taipei",
+      "server": "3.112.18.99",
+      "server_port": 443,
+      "method": "aes-256-cfb",
+      "password": "amazonskr05",
+      "udp_over_tcp": false
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "US_Houston",
+      "server": "54.191.187.21",
+      "server_port": 443,
+      "method": "aes-256-cfb",
+      "password": "amazonskr05",
+      "udp_over_tcp": false
+    },
+    {
+      "type": "shadowsocks",
+      "tag": "HK_Los_Angeles",
+      "server": "54.71.217.123",
       "server_port": 443,
       "method": "aes-256-cfb",
       "password": "amazonskr05",
