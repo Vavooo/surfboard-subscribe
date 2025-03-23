@@ -5,75 +5,75 @@ mode: Rule
 log-level: info
 external-controller: 127.0.0.1:9090
 proxies:
-- name: TW_Taipei
-  type: ss
-  server: 43.201.85.71
-  port: 443
-  cipher: aes-256-cfb
-  password: amazonskr05
-- name: KR_Incheon
-  type: ss
-  server: 54.248.66.29
-  port: 443
-  cipher: aes-256-cfb
-  password: amazonskr05
-- name: HK_Los_Angeles
-  type: ss
-  server: 34.222.2.112
-  port: 443
-  cipher: aes-256-cfb
-  password: amazonskr05
-- name: CA_Vancouver
-  type: ss
-  server: 35.161.163.245
-  port: 443
-  cipher: aes-256-cfb
-  password: amazonskr05
 - name: US_Houston
   type: ss
-  server: 54.244.128.249
-  port: 443
-  cipher: aes-256-cfb
-  password: amazonskr05
-- name: SG_Singapore
-  type: ss
-  server: 3.35.138.170
-  port: 443
-  cipher: aes-256-cfb
-  password: amazonskr05
-- name: US_Dallas_2
-  type: ss
-  server: 54.201.58.186
-  port: 443
-  cipher: aes-256-cfb
-  password: amazonskr05
-- name: JP_Tokyo_2
-  type: ss
-  server: 13.213.69.248
-  port: 443
-  cipher: aes-256-cfb
-  password: amazonskr05
-- name: HK_Kowloon
-  type: ss
-  server: 52.195.175.110
+  server: 54.200.106.206
   port: 443
   cipher: aes-256-cfb
   password: amazonskr05
 - name: HK_New_Territories
   type: ss
-  server: 57.180.35.64
+  server: 3.112.18.99
   port: 443
   cipher: aes-256-cfb
   password: amazonskr05
-- name: JP_Tokyo
+- name: KR_Incheon
   type: ss
-  server: 54.180.131.20
+  server: 52.195.175.110
+  port: 443
+  cipher: aes-256-cfb
+  password: amazonskr05
+- name: JP_Tokyo_2
+  type: ss
+  server: 43.207.150.238
   port: 443
   cipher: aes-256-cfb
   password: amazonskr05
 - name: JP_Osaka
   type: ss
-  server: 43.201.254.74
+  server: 43.203.206.73
+  port: 443
+  cipher: aes-256-cfb
+  password: amazonskr05
+- name: US_Dallas_2
+  type: ss
+  server: 34.222.2.112
+  port: 443
+  cipher: aes-256-cfb
+  password: amazonskr05
+- name: JP_Tokyo
+  type: ss
+  server: 43.203.249.105
+  port: 443
+  cipher: aes-256-cfb
+  password: amazonskr05
+- name: TW_Taipei
+  type: ss
+  server: 13.230.142.42
+  port: 443
+  cipher: aes-256-cfb
+  password: amazonskr05
+- name: HK_Kowloon
+  type: ss
+  server: 43.201.85.71
+  port: 443
+  cipher: aes-256-cfb
+  password: amazonskr05
+- name: HK_Los_Angeles
+  type: ss
+  server: 52.27.128.220
+  port: 443
+  cipher: aes-256-cfb
+  password: amazonskr05
+- name: SG_Singapore
+  type: ss
+  server: 13.230.168.61
+  port: 443
+  cipher: aes-256-cfb
+  password: amazonskr05
+- name: CA_Vancouver
+  type: ss
+  server: 54.188.6.233
   port: 443
   cipher: aes-256-cfb
   password: amazonskr05
@@ -81,36 +81,36 @@ proxy-groups:
 - name: Auto
   type: url-test
   proxies:
-  - TW_Taipei
-  - KR_Incheon
-  - HK_Los_Angeles
-  - CA_Vancouver
   - US_Houston
-  - SG_Singapore
-  - US_Dallas_2
-  - JP_Tokyo_2
-  - HK_Kowloon
   - HK_New_Territories
-  - JP_Tokyo
+  - KR_Incheon
+  - JP_Tokyo_2
   - JP_Osaka
+  - US_Dallas_2
+  - JP_Tokyo
+  - TW_Taipei
+  - HK_Kowloon
+  - HK_Los_Angeles
+  - SG_Singapore
+  - CA_Vancouver
   url: http://www.gstatic.com/generate_204
   interval: 300
   tolerance: 100
 - name: Manual
   type: select
   proxies:
-  - TW_Taipei
-  - KR_Incheon
-  - HK_Los_Angeles
-  - CA_Vancouver
   - US_Houston
-  - SG_Singapore
-  - US_Dallas_2
-  - JP_Tokyo_2
-  - HK_Kowloon
   - HK_New_Territories
-  - JP_Tokyo
+  - KR_Incheon
+  - JP_Tokyo_2
   - JP_Osaka
+  - US_Dallas_2
+  - JP_Tokyo
+  - TW_Taipei
+  - HK_Kowloon
+  - HK_Los_Angeles
+  - SG_Singapore
+  - CA_Vancouver
 - name: PROXY
   type: select
   proxies:
