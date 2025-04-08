@@ -5,96 +5,96 @@ mode: Rule
 log-level: info
 external-controller: 127.0.0.1:9090
 proxies:
-- name: JP_Osaka
-  type: ss
-  server: 43.201.254.74
-  port: 443
-  cipher: aes-256-cfb
-  password: amazonskr05
 - name: TW_Taipei
-  type: ss
-  server: 13.230.226.50
-  port: 80
-  cipher: aes-256-cfb
-  password: thisgou
-- name: US_Houston
-  type: ss
-  server: 35.93.139.175
-  port: 463
-  cipher: aes-256-cfb
-  password: 463qwerty
-- name: CA_Vancouver
-  type: ss
-  server: 35.92.133.58
-  port: 463
-  cipher: aes-256-cfb
-  password: 463qwerty
-- name: KR_Incheon
   type: ss
   server: 54.255.184.248
   port: 80
   cipher: aes-256-cfb
   password: wiaimihu22
-- name: HK_Kowloon
-  type: ss
-  server: 18.183.101.244
-  port: 80
-  cipher: aes-256-cfb
-  password: thisgou
-- name: US_Dallas_2
-  type: ss
-  server: 52.33.3.233
-  port: 463
-  cipher: aes-256-cfb
-  password: 463qwerty
-- name: HK_Los_Angeles
-  type: ss
-  server: 35.167.5.118
-  port: 463
-  cipher: aes-256-cfb
-  password: 463qwerty
 - name: JP_Tokyo
   type: ss
   server: 3.113.19.241
   port: 80
   cipher: aes-256-cfb
   password: thisgou
-- name: SG_Singapore
+- name: HK_Kowloon
+  type: ss
+  server: 13.230.226.50
+  port: 80
+  cipher: aes-256-cfb
+  password: thisgou
+- name: HK_Los_Angeles
+  type: ss
+  server: 52.33.3.233
+  port: 463
+  cipher: aes-256-cfb
+  password: 463qwerty
+- name: US_Dallas_2
+  type: ss
+  server: 35.93.139.175
+  port: 463
+  cipher: aes-256-cfb
+  password: 463qwerty
+- name: KR_Incheon
   type: ss
   server: 18.142.181.4
   port: 25612
   cipher: aes-256-cfb
   password: 25612qazwsx
+- name: CA_Vancouver
+  type: ss
+  server: 35.92.133.58
+  port: 463
+  cipher: aes-256-cfb
+  password: 463qwerty
+- name: US_Houston
+  type: ss
+  server: 35.167.5.118
+  port: 463
+  cipher: aes-256-cfb
+  password: 463qwerty
+- name: SG_Singapore
+  type: ss
+  server: 18.183.101.244
+  port: 80
+  cipher: aes-256-cfb
+  password: thisgou
+- name: JP_Osaka
+  type: ss
+  server: 43.201.254.74
+  port: 443
+  cipher: aes-256-cfb
+  password: amazonskr05
 proxy-groups:
 - name: Auto
   type: url-test
   proxies:
-  - JP_Osaka
   - TW_Taipei
-  - US_Houston
-  - CA_Vancouver
-  - KR_Incheon
-  - HK_Kowloon
-  - US_Dallas_2
-  - HK_Los_Angeles
   - JP_Tokyo
+  - HK_Kowloon
+  - HK_Los_Angeles
+  - US_Dallas_2
+  - KR_Incheon
+  - CA_Vancouver
+  - US_Houston
   - SG_Singapore
+  - JP_Osaka
   url: http://www.gstatic.com/generate_204
   interval: 300
   tolerance: 100
 - name: Manual
   type: select
   proxies:
-  - JP_Osaka
   - TW_Taipei
-  - US_Houston
-  - CA_Vancouver
-  - KR_Incheon
-  - HK_Kowloon
-  - US_Dallas_2
-  - HK_Los_Angeles
   - JP_Tokyo
+  - HK_Kowloon
+  - HK_Los_Angeles
+  - US_Dallas_2
+  - KR_Incheon
+  - CA_Vancouver
+  - US_Houston
   - SG_Singapore
+  - JP_Osaka
 - name: PROXY
   type: select
   proxies:
